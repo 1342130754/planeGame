@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+		<title>飞机大战</title>
+	</head>
+	<style>
+		#gameBox{
+			width: 512px;
+			height: 768px;
+			/* background-image: url(img/bg1.jpg); */
+			margin: auto;
+			position: relative;
+		}
+		#btnStart{
+			position: absolute;
+			left: 100px;
+			top:500px;
+			width: 312px;
+			height: 45px;
+			font-size: 20px;
+			cursor: pointer;
+		}
+	</style>
+	<body>
+		<div id="gameBox">
+			<canvas id="game" width="512px" height="768px">
+			</canvas>
+			<button style="" id="btnStart" onclick="startGame()">开始游戏</button>
+		</div>
+		
+		<audio src="./sounds/game_music.mp3" id="bgm" loop ></audio>
+		<audio src="./sounds/use_bomb.mp3" id="boom"  ></audio>
+		
+	</body>
+	<script type="text/javascript" src="js/BackGround.js"></script>
+	<script type="text/javascript" src="js/Hero.js"></script>
+	
+	<script type="text/javascript" src="js/Enemy.js"></script>
+	<script type="text/javascript" src="js/Bullet.js"></script>
+	<script type="text/javascript" src="js/Boom.js"></script>
+		
+	
+	<script type="text/javascript">
+		var game=document.getElementById("game");
+		/* ctx是画笔 */
+		var ctx = game.getContext("2d");
+		
+		/* .....加载资源..... */
+		var resource=[
+		"img/bg1.jpg",
+		"img/plane_0.png",
+		"img/fire.png",
+		"img/plane_1.png",
+		"img/enemy_small.png",
+		"img/enemy_big.png",
+		"img/boom_big.png",
+		];//要加载的资源
+		var resObj=[];
+		function loadResource(){
+			var count=0;
+			for(var i=0;i<resource.length;i++){
+				var img=new Image();
+				img.src=resource[i];
+				img.onload=function(){
+					count++;
+					if(count==resource.length){
+						ctx.drawImage(resObj[0],0,0);
+					}
+				}
+				resObj.push(img);
+				
+			}
+		
+		}
+		var hero=null;
+		//敌机数组 储存敌机
+		var enemyList=[];
+		//放爆炸动画
+		var boomList=[];
+		//设置游戏分数
+		var score=0;
+		function startGame(){
+		document.getElementById("btnStart").style.display="none";
+		document.getElementById("bgm").play();
+			var bg=new BackGround(0,-768,resObj[0]);
+			hero=new Hero(200,550,resObj[3]);
+			
+			hero.fire();
+			setInterval(function(){
+				addEnemy();//调用添加敌机的方法
+				checkBulletAndEnemyCrash();//判断子弹与敌机碰撞检测
+				bg.draw(ctx);//画背景
+				hero.draw(ctx);//画自己的飞机
+				//画敌机
+				for(var i=0;i<enemyList.length;i++){
+					enemyList[i].draw(ctx);
+				}
+				//画爆炸动画
+				for(var i=0;i<boomList.length;i++){
+					boomList[i].draw(ctx);
+				}
+				ctx.fillStyle="red";
+				ctx.font="30px 微软雅黑";
+				ctx.fillText("得分: "+score,20,50);
+			},30)
+		} 
+		loadResource();
+		game.onmousemove = function(event) {
+			//当鼠标在game上面去移动的时候，我要让飞机跟着鼠标移动
+			//event就是这个事件对象，它记录了我们的鼠标的坐标值
+			//获取距离左边的值，和矩形距离上边的值
+			var left = game.getBoundingClientRect().left;
+			var top = game.getBoundingClientRect().top;
+		
+			//用鼠标的横坐标 - 矩形距离屏幕左边的距离 就得到了飞机的横坐标
+			hero.x = event.clientX - left - hero.width / 2;
+			hero.y = event.clientY - top - hero.height / 2;
+		
+			//防止飞机跑到屏幕的外边去了
+			if (hero.x < 0) {
+				hero.x = 0;
+			} else if (hero.x > 512 - hero.width) {
+				hero.x = 512 - hero.width;
+			} else if(hero.y>768-hero.height){
+				hero.y=768-hero.height;
+			 }
+			 else if(hero.y<0){
+				hero.y=0;
+			 }
+		}
+		//添加敌机
+		function addEnemy(){
+			if(enemyList.length<5){
+				var count=6-enemyList.length;
+				for(var i=0;i<count;i++){
+					var enemy=new Enemy();
+					enemyList.push(enemy);
+				}
+			}
+		}
+			//检测两个游戏是否发生碰撞
+		function checkCrash(a, b) {
+					//a与b就是两个参数，现在来检测它们是否有碰撞
+					if (b.x + b.width < a.x ||
+						a.x + a.width < b.x ||
+						b.y + b.height < a.y ||
+						a.y + a.height < b.y) {
+						//只要满足上面任何一种情况就都没有发生碰撞
+						return false;
+					} else {
+						//发生碰撞
+						return true;
+					}
+				}
+		function checkBulletAndEnemyCrash(){
+					for(var i=0;i<hero.bulletList.length;i++){//循环子弹
+						for(var j=0;j<enemyList.length;j++){//循环敌机
+							var thisBullet=hero.bulletList[i];//当前子弹
+							var thisEnemy=enemyList[j];//当前敌机
+							if(checkCrash(thisBullet,thisEnemy)){
+								/* if(thisEnemy.img==resObj[5]){
+									thisEnemy.life--;
+								if(thisEnemy.life==0){
+									enemyList.splice(j,1);
+								}
+								}
+								else{
+									thisEnemy.life--;
+									if(thisEnemy.life==0){
+										enemyList.splice(j,1);
+									}
+								} */
+								
+									thisEnemy.life--;
+									thisEnemy.isDie();
+									
+				
+								hero.bulletList.splice(i,1);
+								
+								break;
+							}
+							
+							
+						}
+					}		
+				}
+				
+	</script>
+</html>
